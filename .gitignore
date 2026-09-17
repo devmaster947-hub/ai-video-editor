@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+input/videos/*
+!input/videos/.gitkeep
+input/voiceover_script.txt
+input/voiceover.*
+work/
+cache/
+output/
+

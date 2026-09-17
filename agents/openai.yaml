@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI智能剪辑"
+  short_description: "口播音频或文案配音驱动的真人UGC混剪"
+  default_prompt: "使用 $ai-video-editor 剪辑真人实拍素材。请先确认口播输入二选一：我提供口播音频，或我提供口播文案与可选音色；然后按完整语义段匹配镜头、渲染并质检多条竖屏视频。"
