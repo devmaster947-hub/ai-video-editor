@@ -48,7 +48,7 @@ fi
 - Skill **不得直接请求 n8n Webhook**。必须通过随 Skill 附带的灵智工坊 CLI，使用【提交任意任务】接口：`lzstudio task submit ... --workflow-id VideoEditingPolicyV1 --input ...`，再通过 `lzstudio task fetch ... --id ...` 轮询结果。
 - n8n 侧工作流以 **Webhook** 节点触发，工作流名称/注册 ID 使用 `VideoEditingPolicyV1`；Webhook 路径为 `v1/video-editing-policy`。灵智工坊服务端负责把【任意任务】转发到该工作流。
 - API Key 不写入 Skill 文件。仅在首次需要调用灵智工坊服务端时，使用上述受控来源发现 Key，并通过延迟门禁校验。
-- macOS Apple Silicon 与 Windows x64 的 CLI 已放在 `tools/lzstudio/`。也可以通过 `LZSTUDIO_CLI` 或 `input/config.json -> lzstudio_cli_path` 指向外部 CLI。
+- macOS Apple Silicon 与 Windows x64 的 CLI 在完整 GitHub 包中位于 `tools/lzstudio/`。精简分发包或其他平台按 [LZStudio CLI 配置说明](references/lzstudio-cli-setup.md) 安装，并通过 `LZSTUDIO_CLI`、系统 PATH 或 `input/config.json -> lzstudio_cli_path` 指向外部 CLI。
 - 客户端与服务端使用稳定协议 `schemaVersion: 1`。服务端后续升级策略时应保持该协议兼容，避免旧版 Skill 因策略升级而失效。
 
 ## 确认口播输入和版本数
