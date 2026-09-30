@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Prepare narration from exactly one input: supplied audio or supplied script."""
-import argparse,difflib,re,shutil,subprocess,tempfile,sys
+import argparse,difflib,os,platform,re,shutil,subprocess,tempfile,sys
 from pathlib import Path
 from utils import VISUAL_FACET_KEYS,config,duration,dump_json,load_json,normalize_shot,run,shot_covers_requirements,visual_requirements
 
@@ -107,12 +107,40 @@ def assign_semantics(cues,chunks):
     for cue in cues:
         cue['semantic_id']=ids[min(cursor,len(ids)-1)]; cursor+=max(1,len(cue['text']))
     return cues
+def system_tts(text,output,voice,rate):
+    system=platform.system()
+    if system=='Darwin':
+        executable=shutil.which('say')
+        if not executable: raise RuntimeError('macOS system voice command say is unavailable')
+        subprocess.check_call([executable,'-v',voice,'-r',str(rate),'-o',str(output),text])
+        return
+    if system=='Windows':
+        executable=shutil.which('powershell') or shutil.which('pwsh')
+        if not executable: raise RuntimeError('Windows PowerShell is required for script narration')
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); text_path=root/'narration.txt'; script_path=root/'speak.ps1'
+            text_path.write_text(text,encoding='utf-8')
+            script_path.write_text(
+                "param([string]$TextPath,[string]$OutputPath,[string]$Voice,[int]$Rate)\n"
+                "Add-Type -AssemblyName System.Speech\n"
+                "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer\n"
+                "if ($Voice) { try { $s.SelectVoice($Voice) } catch {} }\n"
+                "$s.Rate = [Math]::Max(-10,[Math]::Min(10,$Rate))\n"
+                "$s.SetOutputToWaveFile($OutputPath)\n"
+                "$s.Speak([IO.File]::ReadAllText($TextPath,[Text.Encoding]::UTF8))\n"
+                "$s.Dispose()\n",
+                encoding='utf-8')
+            speech_rate=max(-10,min(10,round((rate-230)/20)))
+            subprocess.check_call([executable,'-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',str(script_path),'-TextPath',str(text_path),'-OutputPath',str(output),'-Voice',voice,'-Rate',str(speech_rate)])
+        return
+    raise RuntimeError('script narration is supported on macOS and Windows; supply recorded narration on other systems')
+
 def tts(segments,cfg,outdir):
-    if not shutil.which('say'): raise RuntimeError('script-only mode requires macOS say or a supplied narration audio file')
     voice=str(cfg.get('tts_voice') or cfg.get('default_tts_voice') or 'Tingting').strip(); rate=max(120,int(cfg.get('tts_rate',230))); parts=[]; cues=[]; cursor=0
     for i,row in enumerate(segments):
-        raw=outdir/f'segment_{i:03d}.aiff'; clean=outdir/f'segment_{i:03d}_clean.wav'; padded=outdir/f'segment_{i:03d}_padded.wav'
-        subprocess.check_call(['say','-v',voice,'-r',str(rate),'-o',str(raw),spoken_alias(row['spoken_text'],cfg)])
+        suffix='.wav' if platform.system()=='Windows' else '.aiff'
+        raw=outdir/f'segment_{i:03d}{suffix}'; clean=outdir/f'segment_{i:03d}_clean.wav'; padded=outdir/f'segment_{i:03d}_padded.wav'
+        system_tts(spoken_alias(row['spoken_text'],cfg),raw,voice,rate)
         trim_filter='silenceremove=start_periods=1:start_duration=0.02:start_threshold=-50dB,areverse,silenceremove=start_periods=1:start_duration=0.08:start_threshold=-50dB,areverse'
         trimmed=run(['ffmpeg','-hide_banner','-loglevel','error','-y','-i',raw,'-af',trim_filter,'-ar','48000','-ac','1',clean],check=False)
         if trimmed.returncode or not clean.exists() or duration(clean)<=.05: run(['ffmpeg','-hide_banner','-loglevel','error','-y','-i',raw,'-ar','48000','-ac','1',clean])

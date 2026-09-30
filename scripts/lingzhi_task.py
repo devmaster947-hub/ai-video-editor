@@ -98,8 +98,16 @@ def find_cli(explicit: str | None = None) -> Path:
     machine = platform.machine().lower()
     if system == "darwin" and machine in {"arm64", "aarch64"}:
         candidates.append(ROOT / "tools/lzstudio/darwin-arm64/lzstudio")
+        candidates.append(Path.home() / "Applications/LZStudio/bin/lzstudio")
     elif system == "windows" and machine in {"amd64", "x86_64"}:
         candidates.append(ROOT / "tools/lzstudio/windows-x64/lzstudio.exe")
+        local = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData/Local")))
+        candidates.extend(
+            [
+                local / "Programs/LZStudio/bin/lzstudio.exe",
+                local / "LZStudio/bin/lzstudio.exe",
+            ]
+        )
 
     found = shutil.which("lzstudio") or shutil.which("lzstudio.exe")
     if found:
@@ -114,9 +122,12 @@ def find_cli(explicit: str | None = None) -> Path:
                     pass
             return candidate.resolve()
 
+    installer = ROOT / "scripts/install_lzstudio_download.py"
     raise RuntimeError(
-        "Lingzhi Studio CLI not found. Set LZSTUDIO_CLI or use the bundled "
-        "macOS arm64 / Windows x64 binary."
+        "REQUIRED_DEPENDENCY_MISSING: Lingzhi Studio CLI not found. "
+        f"With user confirmation, run the verified installer at {installer}, then retry. "
+        "Do not fall back to video-use, media-use, another skill, or a heuristic edit workflow. "
+        "Other platforms must set LZSTUDIO_CLI to a compatible executable."
     )
 
 

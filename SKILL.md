@@ -1,22 +1,32 @@
 ---
 name: ai-video-editor
 slug: ai-video-editor
-version: 4.3.0
+version: 4.4.1
 displayName: AI智能剪辑
 summary: 将真人实拍素材按口播语义匹配镜头，生成带字幕和可选背景音乐的多版本竖屏带货视频。
 tags:
-  - video
-  - editing
-  - ugc
-  - ecommerce
-  - subtitles
-  - ffmpeg
+  - 视频剪辑
+  - 带货视频
+  - 用户原创内容
+  - 电商营销
+  - 自动字幕
+  - 批量成片
 description: "自动把用户提供的真人实拍素材剪成多条竖屏带货视频。口播输入二选一：用户提供口播音频，按音频中的文案和实际时间轴剪辑；或用户提供口播文案与可选音色，生成口播后剪辑。支持语义段落级音画匹配、可选固定音量背景音乐、最高 1.3 倍速限制、shot_library 素材缓存、字幕、FFmpeg 并行渲染和质量门禁。适用于 UGC、产品演示、口播、TikTok、抖音、快手、千川实拍素材剪辑；不用于 AI 视频生成或对标视频复刻。"
 ---
 
-# AI智能剪辑 V4.3（单次服务端策略版）
+# AI智能剪辑
 
 只剪辑用户提供的真人实拍素材。客户端使用 AI 完成有证据支撑的画面分析、口播转录或配音处理；**镜头选择/组合、连续性控制、多版本差异控制和方案优先级由服务端 `VideoEditingPolicyV1` 决定**。客户端只保留数据准备、结构校验、FFmpeg 渲染、质量门禁和交付。服务端工作流不调用任何大模型，因此不消耗模型 Token。不得把启发式规则描述成真实的视觉分析结果。
+
+## WorkBuddy 与跨平台启动
+
+- 技能标识和显式调用名固定为 `ai-video-editor` 与 `$ai-video-editor`。必须从当前 `SKILL.md` 所在目录解析脚本与输入目录，不依赖安装层级。
+- 由于公开 slug 可能存在同名包，必须使用 `@indiv-lululab/ai-video-editor` 安装；若生成 `@indiv-lululab/ai-video-editor` 两层目录，应把最内层完整文件夹移动为 WorkBuddy skills 根目录下的 `ai-video-editor`。
+- Windows 优先使用 `py -3`，macOS 优先使用 `python3`。第一次执行先运行 `scripts/workbuddy_preflight.py`，缺失项目必须逐项提示。
+- LZStudio CLI 是执行 `VideoEditingPolicyV1` 的必需依赖，不是可替换组件。预检报告缺少 `lzstudio` 时，**不得改用 `video-use`、`media-use`、其他 Skill 或本地启发式剪辑流程**，也不得宣称已完成本 Skill 的样片。
+- SkillHub 精简包缺少 LZStudio CLI 时，先请用户确认下载经 SHA-256 锁定的可执行文件；获得确认后运行 `scripts/install_lzstudio_download.py`，随后必须重新运行预检。安装器支持 macOS Apple Silicon 和 Windows x64；其他架构使用 `LZSTUDIO_CLI` 指向兼容程序。
+- 用户拒绝安装、下载或校验失败、或当前平台不受支持时，停止在服务端策略阶段并如实报告；保留已完成的本地准备结果，不得降级成其他剪辑方案。
+- 文案配音在 macOS 使用系统 `say`，在 Windows 使用系统 `System.Speech`；用户提供口播音频时不调用系统配音。
 
 ## 延迟 API Key 门禁
 
@@ -99,13 +109,13 @@ $env:LZSTUDIO_API_KEY="你的 key"
 配置后从第 6 步继续；`remote_edit_strategy.py` 会自动校验。只有排查凭据问题时，才单独运行（macOS/Linux 优先使用 `python3`）：
 
 ```bash
-python3 scripts/validate_lingzhi_api_key.py
+<python> <技能根目录>/scripts/validate_lingzhi_api_key.py
 ```
 
 校验通过后可继续运行服务端策略阶段和后续流程。使用总流水线命令时，它也必须先完成本地前置阶段，到 `remote_edit_strategy` 阶段才触发 Key 校验：
 
 ```bash
-python scripts/run_pipeline.py --library-response <combined.json> --narration-response work/narration_response.json
+<python> <技能根目录>/scripts/run_pipeline.py --library-response <combined.json> --narration-response work/narration_response.json
 ```
 
 素材库全部命中缓存时省略 `--library-response`。服务端剪辑决策默认每次重新请求，以便旧版 Skill 自动获得兼容的策略升级；口播缓存仍可按原规则复用。
